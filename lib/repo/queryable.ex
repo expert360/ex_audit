@@ -1,8 +1,6 @@
 defmodule ExAudit.Queryable do
   require Logger
 
-  import Ecto.Query, only: [from: 2, where: 3]
-
   defp version_schema() do
     Application.get_env(:ex_audit, :version_schema)
   end
@@ -18,6 +16,8 @@ defmodule ExAudit.Queryable do
   end
 
   def history(module, struct, opts) do
+    import Ecto.Query
+
     query =
       from(
         v in version_schema(),
@@ -40,7 +40,7 @@ defmodule ExAudit.Queryable do
           )
       end
 
-    versions = Ecto.Repo.Queryable.all(module, query, opts)
+    versions = Ecto.Repo.Queryable.all(module, query, Ecto.Repo.Supervisor.tuplet(module, opts))
 
     if Keyword.get(opts, :render_struct, false) do
       {versions, oldest_struct} =
@@ -72,15 +72,6 @@ defmodule ExAudit.Queryable do
     else
       versions
     end
-  end
-
-  def history_query(%{id: id, __struct__: struct}) do
-    from(
-        v in version_schema(),
-        where: v.entity_id == ^id,
-        where: v.entity_schema == ^struct,
-        order_by: [desc: :recorded_at]
-      )
   end
 
   @drop_fields [:__meta__, :__struct__]
